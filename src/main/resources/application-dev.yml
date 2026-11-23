@@ -1,0 +1,3 @@
+lec:
+  auth:
+    mock-enabled: ${LEC_AUTH_MOCK_ENABLED:true}

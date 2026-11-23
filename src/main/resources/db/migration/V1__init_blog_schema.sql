@@ -1,0 +1,41 @@
+CREATE TABLE member_blog (
+    user_id VARCHAR(128) ${user-id-collation} NOT NULL,
+    username VARCHAR(128) NOT NULL DEFAULT '',
+    display_name VARCHAR(128) NOT NULL DEFAULT '',
+    avatar_url VARCHAR(512) NOT NULL DEFAULT '',
+    is_captain TINYINT(1) NOT NULL DEFAULT 0,
+    blog_url VARCHAR(512) NOT NULL,
+    blog_title VARCHAR(128) NOT NULL DEFAULT '',
+    bio VARCHAR(300) NOT NULL DEFAULT '',
+    tags_json VARCHAR(512) NOT NULL DEFAULT '[]',
+    rss_url VARCHAR(512),
+    rss_etag VARCHAR(255),
+    rss_last_modified VARCHAR(255),
+    rss_initialized TINYINT(1) NOT NULL DEFAULT 0,
+    last_post_title VARCHAR(255),
+    last_post_url VARCHAR(512),
+    last_post_at DATETIME(3),
+    last_synced_at DATETIME(3),
+    sync_error VARCHAR(255),
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (user_id),
+    KEY idx_member_blog_status_post (status, last_post_at DESC, updated_at DESC)
+) ${table-options};
+
+CREATE TABLE blog_post (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id VARCHAR(128) ${user-id-collation} NOT NULL,
+    guid_hash CHAR(64) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    post_url VARCHAR(512) NOT NULL,
+    summary VARCHAR(500) NOT NULL DEFAULT '',
+    source_type VARCHAR(16) NOT NULL DEFAULT 'RSS',
+    published_at DATETIME(3) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_blog_post_user_guid (user_id, guid_hash),
+    KEY idx_blog_post_user_pub (user_id, published_at DESC),
+    KEY idx_blog_post_pub (published_at DESC)
+) ${table-options};
