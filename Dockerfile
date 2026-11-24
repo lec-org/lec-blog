@@ -1,8 +1,16 @@
 FROM maven:3.9-eclipse-temurin-17-alpine AS build
 WORKDIR /build
+ARG MAVEN_MIRROR_URL=https://maven.aliyun.com/repository/public
+ARG SKIP_TESTS=false
 COPY pom.xml .
 COPY src src
-RUN --mount=type=cache,id=lec-blog-maven,target=/root/.m2/repository mvn -B -ntp -DskipTests package
+RUN --mount=type=cache,id=lec-blog-maven,target=/root/.m2/repository \
+    sh -ceu 'if [ -n "$MAVEN_MIRROR_URL" ]; then \
+      printf "<settings><mirrors><mirror><id>mirror</id><mirrorOf>central</mirrorOf><url>%s</url></mirror></mirrors></settings>\n" "$MAVEN_MIRROR_URL" > /tmp/maven-settings.xml; \
+      mvn -B -ntp -s /tmp/maven-settings.xml "-DskipTests=${SKIP_TESTS}" package; \
+    else \
+      mvn -B -ntp "-DskipTests=${SKIP_TESTS}" package; \
+    fi'
 
 FROM eclipse-temurin:17-jre-alpine
 RUN addgroup -S blog && adduser -S -G blog blog

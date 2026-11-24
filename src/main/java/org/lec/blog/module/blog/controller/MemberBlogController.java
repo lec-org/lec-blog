@@ -79,6 +79,13 @@ public class MemberBlogController {
     }
 
     @RequireCaptain
+    @Operation(summary = "队长查看已下架的成员博客列表")
+    @GetMapping("/admin/blogs/hidden")
+    public ApiResponse<List<MemberBlogItemResponse>> listHidden() {
+        return ApiResponse.ok(blogs.listHidden());
+    }
+
+    @RequireCaptain
     @Operation(summary = "队长下架指定成员博客")
     @DeleteMapping("/admin/blogs/{userId}")
     public ApiResponse<Void> hide(@PathVariable @Size(max = 128) String userId) {

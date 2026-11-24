@@ -44,6 +44,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class BlogSyncService {
+    static final int MAX_IMPORT_POSTS = 50;
     private static final Logger LOG = LoggerFactory.getLogger(BlogSyncService.class);
     private final Cache<String, Boolean> manualCooldown = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofMinutes(5)).build();
@@ -101,9 +102,15 @@ public class BlogSyncService {
                 throw new IOException("首次同步未收到订阅源数据");
             }
             feedItems = response.status() == 304 ? List.of() : parseFeed(response, userId, now);
-        } catch (IOException | FeedException | BizException exception) {
-            String error = exception instanceof FeedException ? "订阅源格式无效" : exception.getMessage();
-            LOG.warn("博客订阅同步失败，作者 ID {}，原因 {}", userId, error);
+        } catch (IOException | FeedException | RuntimeException exception) {
+            boolean unexpectedRuntime = exception instanceof RuntimeException && !(exception instanceof BizException);
+            String error = exception instanceof FeedException ? "订阅源格式无效"
+                    : unexpectedRuntime ? "订阅源解析异常" : exception.getMessage();
+            if (unexpectedRuntime) {
+                LOG.warn("博客订阅同步发生未预期异常，作者 ID {}", userId, exception);
+            } else {
+                LOG.warn("博客订阅同步失败，作者 ID {}，原因 {}", userId, error);
+            }
             transaction.executeWithoutResult(status -> {
                 if (stillCurrent(snapshot, blogs.lock(userId))) {
                     blogs.update(syncUpdate(userId, Utc.now()).set(MemberBlogEntity::getSyncError, Text.truncate(error, 255)));
@@ -209,7 +216,7 @@ public class BlogSyncService {
             }
         }
         posts.sort(Comparator.comparing(BlogPostEntity::getPublishedAt).reversed());
-        return posts;
+        return posts.size() > MAX_IMPORT_POSTS ? new ArrayList<>(posts.subList(0, MAX_IMPORT_POSTS)) : posts;
     }
 
     private static String header(String value) {

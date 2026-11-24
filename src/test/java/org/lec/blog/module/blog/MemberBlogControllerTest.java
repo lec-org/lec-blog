@@ -49,6 +49,11 @@ class MemberBlogControllerTest {
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, "authorization"))
                 .andExpect(content().string(""));
+        mvc.perform(options(ME).header(HttpHeaders.ORIGIN, "null")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PUT")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "null"));
         mvc.perform(get(ME).header(HttpHeaders.ORIGIN, origin))
                 .andExpect(status().isUnauthorized());
     }
@@ -108,6 +113,16 @@ class MemberBlogControllerTest {
         mvc.perform(get(ME).header("X-Dev-User-Id", "hidden-owner")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("HIDDEN"));
         mvc.perform(delete(ME).header("X-Dev-User-Id", "hidden-owner")).andExpect(status().isForbidden());
+        mvc.perform(put(ME).header("X-Dev-User-Id", "hidden-owner").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"blogUrl":"https://93.184.216.34","blogTitle":"Attempted edit while hidden"}
+                                """))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/admin/blogs/hidden").header("X-Dev-User-Id", "regular"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/admin/blogs/hidden").header("X-Dev-User-Id", "chief").header("X-Dev-Captain", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.userId=='hidden-owner')]").isNotEmpty());
         mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "Hidden blog"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(post(admin + "/restore").header("X-Dev-User-Id", "regular")).andExpect(status().isForbidden());
@@ -117,6 +132,9 @@ class MemberBlogControllerTest {
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"));
         mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "Hidden blog"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+        mvc.perform(get("/api/v1/admin/blogs/hidden").header("X-Dev-User-Id", "chief").header("X-Dev-Captain", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.userId=='hidden-owner')]").isEmpty());
         mvc.perform(get("/api/v1/posts/recent").header("X-Dev-User-Id", "reader").param("size", "51"))
                 .andExpect(status().isBadRequest());
         mvc.perform(put(ME).header("X-Dev-User-Id", "hidden-owner").contentType(MediaType.APPLICATION_JSON)

@@ -136,6 +136,29 @@ class BlogSyncServiceTest {
                 .until(() -> blogs.selectById("manual-author").isRssInitialized());
     }
 
+    @Test
+    void capsImportedPostsToFiftyAndContinuesSchedulerAfterUnexpectedFailure() throws Exception {
+        var manyItems = new StringBuilder();
+        for (int i = 0; i < 65; i++) {
+            manyItems.append(item("bulk-" + i, "Bulk " + i, -i));
+        }
+        when(http.get(HOME + "bulk-feed", null, null))
+                .thenReturn(result(HOME + "bulk-feed", 200, rss(manyItems.toString()), null, null));
+        members.upsert(new AuthUser("bulk-author", "bulk", "Bulk Author", "", java.util.List.of(),
+                java.util.List.of(), true, false), new UpsertMyBlogRequest(HOME, "Bulk Blog", "", null, HOME + "bulk-feed", false));
+        sync.sync("bulk-author");
+        assertThat(postCount("bulk-author")).isEqualTo(50);
+
+        when(http.get(HOME + "boom-feed", null, null)).thenThrow(new IllegalStateException("malformed parser crash"));
+        members.upsert(new AuthUser("boom-author", "boom", "Boom Author", "", java.util.List.of(),
+                java.util.List.of(), true, false), new UpsertMyBlogRequest(HOME, "Boom Blog", "", null, HOME + "boom-feed", false));
+        sync.sync("boom-author");
+        assertThat(blogs.selectById("boom-author").getSyncError()).isEqualTo("订阅源解析异常");
+
+        members.delete("bulk-author");
+        members.delete("boom-author");
+    }
+
     private long postCount(String author) {
         return posts.selectCount(Wrappers.<BlogPostEntity>lambdaQuery().eq(BlogPostEntity::getUserId, author));
     }

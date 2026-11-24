@@ -68,12 +68,25 @@ public class MemberBlogService {
                 .toList();
     }
 
+    public List<MemberBlogItemResponse> listHidden() {
+        var query = Wrappers.<MemberBlogEntity>lambdaQuery()
+                .eq(MemberBlogEntity::getStatus, "HIDDEN")
+                .orderByDesc(MemberBlogEntity::getUpdatedAt)
+                .orderByAsc(MemberBlogEntity::getUserId);
+        var now = Utc.now();
+        return blogs.selectList(query).stream().map(blog -> item(blog, now)).toList();
+    }
+
     public MyBlogResponse own(String userId) {
         var blog = blogs.selectById(userId);
         return blog == null ? null : toOwn(blog);
     }
 
     public MyBlogResponse upsert(AuthUser user, UpsertMyBlogRequest request) {
+        var current = blogs.selectById(user.userId());
+        if (current != null && "HIDDEN".equals(current.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "博客已被队长下架，请联系队长处理");
+        }
         String blogUrl = urls.validate(request.blogUrl().strip()).toString();
         String rssUrl = clean(request.rssUrl());
         if (!rssUrl.isEmpty()) {
@@ -116,6 +129,9 @@ public class MemberBlogService {
             blogs.insert(blog);
             identityCache.put(user.userId(), IdentitySnapshot.from(user));
             return toOwn(blog);
+        }
+        if ("HIDDEN".equals(existing.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "博客已被队长下架，请联系队长处理");
         }
 
         var update = Wrappers.<MemberBlogEntity>lambdaUpdate()

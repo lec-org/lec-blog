@@ -34,6 +34,6 @@ public class WebConfig implements WebMvcConfigurer {
             }
         }
         registry.addMapping("/api/v1/**").allowedOriginPatterns(origins.toArray(String[]::new))
-                .allowedMethods("GET", "PUT", "DELETE", "POST").allowedHeaders("*");
+                .allowedMethods("GET", "PUT", "DELETE", "POST", "OPTIONS").allowedHeaders("*");
     }
 }

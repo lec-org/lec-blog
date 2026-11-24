@@ -53,10 +53,12 @@ java -jar target/lec-blog.jar
 | `ORBIT_INTERNAL_TOKEN` | 空 | Orbit 内部事件令牌 |
 | `RSS_SYNC_ENABLED` | `true` | 启用定时同步 |
 | `RSS_SYNC_INTERVAL_MS` | `1800000` | 定时同步间隔，单位毫秒 |
-| `CORS_ALLOWED_ORIGINS` | `*` | 逗号分隔的来源列表，例如 `https://orbit.lecspace.top,*.lecspace.top` |
+| `CORS_ALLOWED_ORIGINS` | `*` | 逗号分隔的来源列表。**注意**：Orbit 正式打包版通过 `file://` 加载渲染进程，请求头 `Origin` 为 `null`；因本服务仅用 `Authorization: Bearer` 鉴权且未启用 Cookie/Credentials，**生产环境推荐保持 `CORS_ALLOWED_ORIGINS=*`**（若需收紧白名单，务必同时包含 `null`，例如 `null,https://orbit.lecspace.top,*.lecspace.top`） |
 | `SWAGGER_ENABLED` | `prod` 默认 `false` | 是否在生产环境暴露 `/swagger-ui.html` 与 `/v3/api-docs` |
 
-部署镜像可用 `docker build -t lec-blog .` 构建。Devtron/Kubernetes 探针可指向 `GET /healthz`，端口与 `PORT` 一致。Flyway 在启动时迁移数据库。生产环境的数据库和 Orbit 令牌通过部署环境的 Secret 注入。
+部署镜像可用 `docker build -t lec-blog .` 构建：
+- `Dockerfile` 默认内置国内阿里云 Maven 镜像（`ARG MAVEN_MIRROR_URL=https://maven.aliyun.com/repository/public`，海外构建可传 `--build-arg MAVEN_MIRROR_URL=` 回退 Maven Central），并在打包时默认执行单元测试（`ARG SKIP_TESTS=false`，若 CI 前置已跑完单测可传 `--build-arg SKIP_TESTS=true`）。
+- Devtron/Kubernetes 探针可指向 `GET /healthz`，端口与 `PORT` 一致。Flyway 在启动时迁移数据库。生产环境的数据库和 Orbit 令牌通过部署环境的 Secret 注入。
 
 ## API
 
@@ -72,6 +74,7 @@ java -jar target/lec-blog.jar
 | `POST /api/v1/blogs/me/sync` | 异步请求同步，每个服务实例对同一成员设 5 分钟冷却 |
 | `GET /api/v1/blogs/{userId}/posts` | 成员文章分页 |
 | `GET /api/v1/posts/recent` | 全工作室文章分页，附作者昵称、头像和博客名 |
+| `GET /api/v1/admin/blogs/hidden` | 队长查看已被下架的成员博客列表 |
 | `DELETE /api/v1/admin/blogs/{userId}` | 队长下架指定成员的博客和文章 |
 | `POST /api/v1/admin/blogs/{userId}/restore` | 队长恢复已下架的成员博客 |
 

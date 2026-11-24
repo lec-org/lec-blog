@@ -32,8 +32,8 @@ public class BlogSyncScheduler {
                 .eq(MemberBlogEntity::getStatus, "ACTIVE").isNotNull(MemberBlogEntity::getRssUrl))) {
             try {
                 sync.sync(blog.getUserId());
-            } catch (org.springframework.dao.DataAccessException exception) {
-                LOG.warn("保存订阅源同步结果失败，作者 ID {}", blog.getUserId(), exception);
+            } catch (Exception exception) {
+                LOG.warn("同步订阅源失败，继续处理后续成员，作者 ID {}", blog.getUserId(), exception);
             }
         }
     }
