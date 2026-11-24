@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: lec-blog
+  datasource:
+    url: "${DB_URL:jdbc:mysql://127.0.0.1:3306/lec_blog?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}"
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    hikari:
+      connection-timeout: 3000
+  flyway:
+    placeholders:
+      table-options: "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"
+      user-id-collation: "COLLATE utf8mb4_bin"
+server:
+  port: ${PORT:8080}
+lec:
+  auth:
+    issuer: ${LEC_SSO_ISSUER:https://sso.lecspace.top/oidc}
+    org-id: ${LEC_SSO_ORG_ID:lec-studio}
+    mock-enabled: ${LEC_AUTH_MOCK_ENABLED:false}
+  orbit:
+    internal-url: ${ORBIT_INTERNAL_URL:}
+    internal-token: ${ORBIT_INTERNAL_TOKEN:}
+  rss:
+    sync-enabled: ${RSS_SYNC_ENABLED:true}
+    interval-ms: ${RSS_SYNC_INTERVAL_MS:1800000}
+  cors-allowed-origins: "${CORS_ALLOWED_ORIGINS:*}"
