@@ -1,6 +1,5 @@
 package org.lec.blog.module.post.controller;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,7 +9,7 @@ import jakarta.validation.constraints.Size;
 import org.lec.blog.common.api.ApiResponse;
 import org.lec.blog.common.api.PageResult;
 import org.lec.blog.module.post.dto.BlogPostItemResponse;
-import org.lec.blog.module.post.mapper.BlogPostMapper;
+import org.lec.blog.module.post.service.PublishedPostQuery;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "博客文章", description = "成员个人博文列表与全工作室最新动态流")
 @SecurityRequirement(name = "LecSSO")
 public class BlogPostController {
-    private final BlogPostMapper posts;
+    private final PublishedPostQuery posts;
 
-    public BlogPostController(BlogPostMapper posts) {
+    public BlogPostController(PublishedPostQuery posts) {
         this.posts = posts;
     }
 
@@ -44,8 +43,6 @@ public class BlogPostController {
     }
 
     private ApiResponse<PageResult<BlogPostItemResponse>> list(String userId, int page, int size) {
-        var result = posts.listActive(new Page<>(page, size), userId);
-        return ApiResponse.ok(new PageResult<>(page, size, result.getTotal(),
-                result.getRecords().stream().map(BlogPostItemResponse::from).toList()));
+        return ApiResponse.ok(posts.list(userId, page, size));
     }
 }

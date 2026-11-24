@@ -1,8 +1,6 @@
 package org.lec.blog.module.post.task;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.lec.blog.config.LecBlogProperties;
-import org.lec.blog.module.blog.entity.MemberBlogEntity;
 import org.lec.blog.module.blog.mapper.MemberBlogMapper;
 import org.lec.blog.module.post.service.BlogSyncService;
 import org.slf4j.Logger;
@@ -28,12 +26,11 @@ public class BlogSyncScheduler {
         if (!properties.rss().syncEnabled()) {
             return;
         }
-        for (var blog : blogs.selectList(Wrappers.<MemberBlogEntity>lambdaQuery().select(MemberBlogEntity::getUserId)
-                .eq(MemberBlogEntity::getStatus, "ACTIVE").isNotNull(MemberBlogEntity::getRssUrl))) {
+        for (String userId : blogs.listExternalFeedOwners()) {
             try {
-                sync.sync(blog.getUserId());
+                sync.sync(userId);
             } catch (Exception exception) {
-                LOG.warn("同步订阅源失败，继续处理后续成员，作者 ID {}", blog.getUserId(), exception);
+                LOG.warn("同步订阅源失败，继续处理后续成员，作者 ID {}", userId, exception);
             }
         }
     }

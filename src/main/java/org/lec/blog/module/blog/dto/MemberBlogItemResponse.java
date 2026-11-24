@@ -7,4 +7,4 @@ public record MemberBlogItemResponse(String userId, String username, String disp
                                      boolean isCaptain, String blogUrl, String blogTitle, String bio,
                                      List<String> tags, String rssUrl, boolean hasRecentPost,
                                      String latestPostTitle, String latestPostUrl, Instant latestPostAt,
-                                     Instant updatedAt) {}
+                                     Instant updatedAt, String blogMode, String hostedSlug) {}

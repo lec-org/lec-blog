@@ -15,8 +15,13 @@ public class BlogPostEntity {
     private String postUrl;
     private String summary;
     private String sourceType;
+    private String slug;
+    private String contentMd;
+    private String coverUrl;
+    private String postStatus;
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -39,9 +44,24 @@ public class BlogPostEntity {
     public String getSourceType() { return sourceType; }
     public void setSourceType(String sourceType) { this.sourceType = sourceType; }
 
+    public String getSlug() { return slug; }
+    public void setSlug(String slug) { this.slug = slug; }
+
+    public String getContentMd() { return contentMd; }
+    public void setContentMd(String contentMd) { this.contentMd = contentMd; }
+
+    public String getCoverUrl() { return coverUrl; }
+    public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
+
+    public String getPostStatus() { return postStatus; }
+    public void setPostStatus(String postStatus) { this.postStatus = postStatus; }
+
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

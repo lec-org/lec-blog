@@ -86,8 +86,8 @@ class LecSsoTokenVerifierTest {
     }
 
     private static LecSsoTokenVerifier verifier(String issuer) throws Exception {
-        return new LecSsoTokenVerifier(new LecBlogProperties(new LecBlogProperties.Auth(issuer, "lec-studio", false),
-                null, null, List.of()), new ObjectMapper());
+        return new LecSsoTokenVerifier(new LecBlogProperties(new LecBlogProperties.Auth(issuer, "lec-studio", false, ""),
+                null, null, List.of(), "http://localhost:8080", null), new ObjectMapper());
     }
 
     private static MockResponse json(String body) {

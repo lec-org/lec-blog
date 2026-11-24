@@ -11,6 +11,7 @@ import java.util.List;
 import org.lec.blog.auth.AuthContext;
 import org.lec.blog.auth.RequireCaptain;
 import org.lec.blog.common.api.ApiResponse;
+import org.lec.blog.module.blog.dto.EnableHostedBlogRequest;
 import org.lec.blog.module.blog.dto.MemberBlogItemResponse;
 import org.lec.blog.module.blog.dto.MyBlogResponse;
 import org.lec.blog.module.blog.dto.UpsertMyBlogRequest;
@@ -44,7 +45,7 @@ public class MemberBlogController {
     public ApiResponse<List<MemberBlogItemResponse>> list(@RequestParam(required = false) @Size(max = 128) String q,
             @RequestParam(required = false) @Size(max = 24) String tag,
             @RequestParam(defaultValue = "recent") @Pattern(regexp = "recent|updated") String sort) {
-        return ApiResponse.ok(blogs.list(q, tag, sort));
+        return ApiResponse.ok(blogs.list(q, tag, sort, "ALL"));
     }
 
     @Operation(summary = "获取我自己的博客配置")
@@ -58,10 +59,17 @@ public class MemberBlogController {
     public ApiResponse<MyBlogResponse> upsert(HttpServletRequest request, @Valid @RequestBody UpsertMyBlogRequest body) {
         var user = AuthContext.user(request);
         var saved = blogs.upsert(user, body);
-        if (saved.blog().rssUrl() != null && saved.status().equals("ACTIVE")) {
+        if ("EXTERNAL".equals(saved.blog().blogMode()) && saved.blog().rssUrl() != null) {
             sync.enqueue(user.userId());
         }
         return ApiResponse.ok(saved);
+    }
+
+    @Operation(summary = "开通或更新工作室托管博客")
+    @PostMapping("/blogs/me/enable-hosted")
+    public ApiResponse<MyBlogResponse> enableHosted(HttpServletRequest request,
+            @Valid @RequestBody EnableHostedBlogRequest body) {
+        return ApiResponse.ok(blogs.enableHosted(AuthContext.user(request), body));
     }
 
     @Operation(summary = "解绑我的博客")

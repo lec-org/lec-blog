@@ -29,6 +29,9 @@ public class MemberBlogEntity {
     private LocalDateTime lastSyncedAt;
     private String syncError;
     private String status;
+    private String blogMode;
+    private String hostedSlug;
+    private String themeJson;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -88,6 +91,15 @@ public class MemberBlogEntity {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getBlogMode() { return blogMode; }
+    public void setBlogMode(String blogMode) { this.blogMode = blogMode; }
+
+    public String getHostedSlug() { return hostedSlug; }
+    public void setHostedSlug(String hostedSlug) { this.hostedSlug = hostedSlug; }
+
+    public String getThemeJson() { return themeJson; }
+    public void setThemeJson(String themeJson) { this.themeJson = themeJson; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

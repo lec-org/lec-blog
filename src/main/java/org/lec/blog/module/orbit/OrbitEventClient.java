@@ -33,28 +33,53 @@ public class OrbitEventClient {
 
     @Async
     public void publish(MemberBlogEntity author, BlogPostEntity post) {
-        if (endpoint.isEmpty() || token.isBlank()) {
-            return;
-        }
         var payload = new Payload(author.getUserId(), author.getUsername(), author.getBlogUrl(),
                 post.getPostUrl(), post.getTitle());
-        String name = author.getDisplayName().isBlank() ? author.getUsername() : author.getDisplayName();
+        String name = memberName(author);
         if (name.isBlank()) {
             name = author.getBlogTitle().isBlank() ? author.getUserId() : author.getBlogTitle();
         }
-        var event = new Event("lec-blog", "blog.post_published", name + " 发布了新博客：《" + post.getTitle() + "》",
-                Text.truncate(post.getSummary(), 120), payload);
+        send(author.getUserId(), new Event("lec-blog", "blog.post_published",
+                name + " 发布了新博客：《" + post.getTitle() + "》",
+                Text.truncate(post.getSummary(), 120), payload));
+    }
+
+    @Async
+    public void publishBlogJoined(MemberBlogEntity author) {
+        String name = memberName(author);
+        String title = (name.isBlank() ? author.getUserId() : name) + ("HOSTED".equals(author.getBlogMode())
+                ? " 开通了工作室博客" : " 绑定了个人博客");
+        if (!author.getBlogTitle().isBlank()) {
+            title += "《" + author.getBlogTitle() + "》";
+        }
+        String body = author.getBio().isBlank() ? author.getBlogUrl() : Text.truncate(author.getBio(), 120);
+        var payload = new JoinedPayload(author.getUserId(), author.getUsername(), author.getBlogUrl(),
+                author.getBlogUrl(), author.getBlogTitle(), author.getBlogMode());
+        send(author.getUserId(), new Event("lec-blog", "blog.member_joined", title, body, payload));
+    }
+
+    private void send(String userId, Event event) {
+        if (endpoint.isEmpty() || token.isBlank()) {
+            return;
+        }
         try {
             var response = http.post().uri(endpoint).contentType(MediaType.APPLICATION_JSON)
                     .header("X-Orbit-Service-Token", token).body(event).retrieve().toBodilessEntity();
             if (!response.getStatusCode().is2xxSuccessful()) {
-                LOG.warn("Orbit 未接受新博文事件，HTTP {}", response.getStatusCode().value());
+                LOG.warn("Orbit 未接受博客事件 {}，HTTP {}", event.eventType(), response.getStatusCode().value());
             }
         } catch (RestClientException | IllegalArgumentException exception) {
-            LOG.warn("Orbit 博文事件推送失败，作者 ID {}，错误 {}", author.getUserId(), exception.getClass().getSimpleName());
+            LOG.warn("Orbit 博客事件 {} 推送失败，作者 ID {}，错误 {}",
+                    event.eventType(), userId, exception.getClass().getSimpleName());
         }
     }
 
-    private record Event(String sourceApp, String eventType, String title, String body, Payload payload) {}
+    private static String memberName(MemberBlogEntity author) {
+        return author.getDisplayName().isBlank() ? author.getUsername() : author.getDisplayName();
+    }
+
+    private record Event(String sourceApp, String eventType, String title, String body, Object payload) {}
     private record Payload(String userId, String username, String blogUrl, String postUrl, String postTitle) {}
+    private record JoinedPayload(String userId, String username, String blogUrl, String postUrl,
+                                 String blogTitle, String blogMode) {}
 }

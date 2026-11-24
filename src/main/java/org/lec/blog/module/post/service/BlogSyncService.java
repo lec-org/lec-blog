@@ -10,19 +10,16 @@ import com.rometools.rome.io.XmlReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 import org.jsoup.Jsoup;
+import org.lec.blog.common.Hashing;
 import org.lec.blog.common.Text;
 import org.lec.blog.common.Utc;
 import org.lec.blog.common.exception.BizException;
@@ -31,6 +28,7 @@ import org.lec.blog.common.security.SafeHttpClient;
 import org.lec.blog.common.security.SafeUrlValidator;
 import org.lec.blog.module.blog.entity.MemberBlogEntity;
 import org.lec.blog.module.blog.mapper.MemberBlogMapper;
+import org.lec.blog.module.blog.service.MemberBlogService;
 import org.lec.blog.module.orbit.OrbitEventClient;
 import org.lec.blog.module.post.entity.BlogPostEntity;
 import org.lec.blog.module.post.mapper.BlogPostMapper;
@@ -69,7 +67,8 @@ public class BlogSyncService {
 
     public void requestManual(String userId) {
         var blog = blogs.selectById(userId);
-        if (blog == null || !blog.getStatus().equals("ACTIVE") || blog.getRssUrl() == null) {
+        MemberBlogService.requireNotHidden(blog);
+        if (!hasExternalFeed(blog)) {
             throw new BizException(ErrorCode.BAD_REQUEST, "请先为有效博客配置订阅源");
         }
         if (manualCooldown.asMap().putIfAbsent(userId, Boolean.TRUE) != null) {
@@ -90,7 +89,7 @@ public class BlogSyncService {
 
     public void sync(String userId) {
         var snapshot = blogs.selectById(userId);
-        if (snapshot == null || !snapshot.getStatus().equals("ACTIVE") || snapshot.getRssUrl() == null) {
+        if (!hasExternalFeed(snapshot)) {
             return;
         }
         SafeHttpClient.Result response;
@@ -158,8 +157,7 @@ public class BlogSyncService {
                 }
             }
         }
-        var newest = posts.selectOne(Wrappers.<BlogPostEntity>lambdaQuery().eq(BlogPostEntity::getUserId, userId)
-                .orderByDesc(BlogPostEntity::getPublishedAt, BlogPostEntity::getId).last("LIMIT 1"));
+        var newest = posts.latestPublished(userId, "RSS");
         blogs.update(update.set(MemberBlogEntity::getRssEtag, etag)
                 .set(MemberBlogEntity::getRssLastModified, lastModified)
                 .set(MemberBlogEntity::isRssInitialized, true)
@@ -175,11 +173,16 @@ public class BlogSyncService {
     }
 
     private static boolean stillCurrent(MemberBlogEntity snapshot, MemberBlogEntity current) {
-        return current != null && current.getStatus().equals("ACTIVE")
+        return hasExternalFeed(current)
                 && current.getCreatedAt().equals(snapshot.getCreatedAt())
                 && current.getBlogUrl().equals(snapshot.getBlogUrl())
                 && Objects.equals(current.getRssUrl(), snapshot.getRssUrl())
                 && Objects.equals(current.getLastSyncedAt(), snapshot.getLastSyncedAt());
+    }
+
+    private static boolean hasExternalFeed(MemberBlogEntity author) {
+        return author != null && "ACTIVE".equals(author.getStatus()) && "EXTERNAL".equals(author.getBlogMode())
+                && author.getRssUrl() != null;
     }
 
     private List<BlogPostEntity> parseFeed(SafeHttpClient.Result response, String userId, LocalDateTime now)
@@ -201,7 +204,7 @@ public class BlogSyncService {
                 var post = new BlogPostEntity();
                 post.setUserId(userId);
                 String key = entry.getUri();
-                post.setGuidHash(hash(key == null || key.isBlank() ? link.toString() : key));
+                post.setGuidHash(Hashing.sha256(key == null || key.isBlank() ? link.toString() : key));
                 String title = Jsoup.parse(entry.getTitle() == null ? "" : entry.getTitle()).text();
                 post.setTitle(title.isBlank() ? "无标题" : Text.truncate(title, 255));
                 post.setPostUrl(link.toString());
@@ -209,9 +212,11 @@ public class BlogSyncService {
                         : entry.getContents().isEmpty() ? "" : entry.getContents().get(0).getValue();
                 post.setSummary(Text.truncate(Jsoup.parse(description == null ? "" : description).text(), 300));
                 post.setSourceType("RSS");
+                post.setPostStatus("PUBLISHED");
                 var date = entry.getPublishedDate() == null ? entry.getUpdatedDate() : entry.getPublishedDate();
                 post.setPublishedAt(date == null ? now : LocalDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC));
                 post.setCreatedAt(now);
+                post.setUpdatedAt(now);
                 posts.add(post);
             }
         }
@@ -221,15 +226,6 @@ public class BlogSyncService {
 
     private static String header(String value) {
         return value != null && value.length() <= 255 ? value : null;
-    }
-
-    private static String hash(String key) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(key.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 unavailable", exception);
-        }
     }
 
     public record SyncRequested(String userId) {}

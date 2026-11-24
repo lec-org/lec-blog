@@ -78,7 +78,8 @@ class BlogSyncServiceTest {
         when(http.get(FEED, null, null)).thenReturn(result(FEED, 200, rss(first + first), "v1", "t1"));
         when(http.get(FEED, "v1", "t1")).thenReturn(result(FEED, 200, rss(first + old + current), "v2", "t2"));
         when(http.get(FEED, "v2", "t2")).thenReturn(result(FEED, 304, "", null, null));
-        members.upsert(new AuthUser("feed-author", "ming", "Ming", "https://example.com/avatar", java.util.List.of(),
+        int requestsBeforeBinding = ORBIT.getRequestCount();
+        bindFeed(new AuthUser("feed-author", "ming", "Ming", "https://example.com/avatar", java.util.List.of(),
                 java.util.List.of(), true, false), new UpsertMyBlogRequest(HOME, "My Blog", "", null, null, true));
 
         sync.sync("feed-author");
@@ -103,7 +104,7 @@ class BlogSyncServiceTest {
         sync.sync("feed-author");
         assertThat(postCount("feed-author")).isEqualTo(3);
         assertThat(blogs.selectById("feed-author").getRssEtag()).isEqualTo("v2");
-        assertThat(ORBIT.getRequestCount()).isEqualTo(1);
+        assertThat(ORBIT.getRequestCount()).isEqualTo(requestsBeforeBinding + 2);
 
         mvc.perform(get("/api/v1/posts/recent").header("X-Dev-User-Id", "reader").param("size", "1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(3))
@@ -127,7 +128,7 @@ class BlogSyncServiceTest {
     void limitsManualSyncRequestsPerUser() throws Exception {
         when(http.get(HOME + "manual", null, null))
                 .thenReturn(result(HOME + "manual", 200, rss(""), null, null));
-        members.upsert(new AuthUser("manual-author", "", "", "", java.util.List.of(), java.util.List.of(), true, false),
+        bindFeed(new AuthUser("manual-author", "", "", "", java.util.List.of(), java.util.List.of(), true, false),
                 new UpsertMyBlogRequest(HOME, "", "", null, HOME + "manual", false));
         sync.requestManual("manual-author");
         assertThatThrownBy(() -> sync.requestManual("manual-author")).isInstanceOf(BizException.class)
@@ -144,19 +145,28 @@ class BlogSyncServiceTest {
         }
         when(http.get(HOME + "bulk-feed", null, null))
                 .thenReturn(result(HOME + "bulk-feed", 200, rss(manyItems.toString()), null, null));
-        members.upsert(new AuthUser("bulk-author", "bulk", "Bulk Author", "", java.util.List.of(),
+        bindFeed(new AuthUser("bulk-author", "bulk", "Bulk Author", "", java.util.List.of(),
                 java.util.List.of(), true, false), new UpsertMyBlogRequest(HOME, "Bulk Blog", "", null, HOME + "bulk-feed", false));
         sync.sync("bulk-author");
         assertThat(postCount("bulk-author")).isEqualTo(50);
 
         when(http.get(HOME + "boom-feed", null, null)).thenThrow(new IllegalStateException("malformed parser crash"));
-        members.upsert(new AuthUser("boom-author", "boom", "Boom Author", "", java.util.List.of(),
+        bindFeed(new AuthUser("boom-author", "boom", "Boom Author", "", java.util.List.of(),
                 java.util.List.of(), true, false), new UpsertMyBlogRequest(HOME, "Boom Blog", "", null, HOME + "boom-feed", false));
         sync.sync("boom-author");
         assertThat(blogs.selectById("boom-author").getSyncError()).isEqualTo("订阅源解析异常");
 
         members.delete("bulk-author");
         members.delete("boom-author");
+    }
+
+    private void bindFeed(AuthUser user, UpsertMyBlogRequest request) throws Exception {
+        ORBIT.enqueue(new MockResponse().setResponseCode(204));
+        members.upsert(user, request);
+        var joined = ORBIT.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(joined).isNotNull();
+        assertThat(new ObjectMapper().readTree(joined.getBody().readUtf8()).path("eventType").asText())
+                .isEqualTo("blog.member_joined");
     }
 
     private long postCount(String author) {

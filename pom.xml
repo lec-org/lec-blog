@@ -17,6 +17,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
         <springdoc.version>2.8.17</springdoc.version>
+        <commonmark.version>0.24.0</commonmark.version>
     </properties>
     <dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
@@ -41,6 +42,10 @@
         <dependency><groupId>org.apache.httpcomponents.client5</groupId><artifactId>httpclient5</artifactId></dependency>
         <dependency><groupId>com.rometools</groupId><artifactId>rome</artifactId><version>2.1.0</version></dependency>
         <dependency><groupId>org.jsoup</groupId><artifactId>jsoup</artifactId><version>1.18.3</version></dependency>
+        <dependency><groupId>org.commonmark</groupId><artifactId>commonmark</artifactId><version>${commonmark.version}</version></dependency>
+        <dependency><groupId>org.commonmark</groupId><artifactId>commonmark-ext-gfm-tables</artifactId><version>${commonmark.version}</version></dependency>
+        <dependency><groupId>org.commonmark</groupId><artifactId>commonmark-ext-gfm-strikethrough</artifactId><version>${commonmark.version}</version></dependency>
+        <dependency><groupId>org.commonmark</groupId><artifactId>commonmark-ext-task-list-items</artifactId><version>${commonmark.version}</version></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
         <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><scope>test</scope></dependency>
         <dependency><groupId>com.squareup.okhttp3</groupId><artifactId>mockwebserver</artifactId><version>4.12.0</version><scope>test</scope></dependency>

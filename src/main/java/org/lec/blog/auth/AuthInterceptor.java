@@ -34,11 +34,16 @@ public class AuthInterceptor implements HandlerInterceptor {
                 && environment.acceptsProfiles(Profiles.of("(dev | test) & !prod"));
     }
 
+    public boolean mockEnabled() {
+        return mockEnabled;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (CorsUtils.isPreFlightRequest(request)) {
             return true;
         }
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         AuthUser user;
         if (authorization == null && mockEnabled) {

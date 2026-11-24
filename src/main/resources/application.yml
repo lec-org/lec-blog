@@ -1,6 +1,11 @@
 spring:
   application:
     name: lec-blog
+  servlet:
+    multipart:
+      resolve-lazily: true
+      max-file-size: 10MB
+      max-request-size: 12MB
   datasource:
     url: "${DB_URL:jdbc:mysql://127.0.0.1:3306/lec_blog?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}"
     username: ${DB_USERNAME:root}
@@ -14,9 +19,11 @@ spring:
 server:
   port: ${PORT:8080}
 lec:
+  public-url: ${BLOG_PUBLIC_URL:http://localhost:8080}
   auth:
     issuer: ${LEC_SSO_ISSUER:https://sso.lecspace.top/oidc}
     org-id: ${LEC_SSO_ORG_ID:lec-studio}
+    web-client-id: ${LEC_SSO_WEB_CLIENT_ID:}
     mock-enabled: ${LEC_AUTH_MOCK_ENABLED:false}
   orbit:
     internal-url: ${ORBIT_INTERNAL_URL:}
@@ -24,4 +31,12 @@ lec:
   rss:
     sync-enabled: ${RSS_SYNC_ENABLED:true}
     interval-ms: ${RSS_SYNC_INTERVAL_MS:1800000}
+  storage:
+    endpoint: ${LEC_S3_ENDPOINT:}
+    bucket: ${LEC_S3_BUCKET:lec-public}
+    region: ${LEC_S3_REGION:us-east-1}
+    access-key: ${LEC_S3_ACCESS_KEY:}
+    secret-key: ${LEC_S3_SECRET_KEY:}
+    public-url: ${LEC_S3_PUBLIC_URL:}
+    key-prefix: ${LEC_S3_KEY_PREFIX:blog}
   cors-allowed-origins: "${CORS_ALLOWED_ORIGINS:*}"
