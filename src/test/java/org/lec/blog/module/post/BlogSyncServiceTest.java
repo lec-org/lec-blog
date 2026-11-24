@@ -2,6 +2,7 @@ package org.lec.blog.module.post;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,6 +12,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
@@ -128,6 +130,8 @@ class BlogSyncServiceTest {
         sync.requestManual("manual-author");
         assertThatThrownBy(() -> sync.requestManual("manual-author")).isInstanceOf(BizException.class)
                 .hasMessageContaining("5 分钟");
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> blogs.selectById("manual-author").isRssInitialized());
     }
 
     private long postCount(String author) {
