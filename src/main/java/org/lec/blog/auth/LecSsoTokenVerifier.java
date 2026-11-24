@@ -60,7 +60,7 @@ public class LecSsoTokenVerifier {
                 JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512), keys));
         var claimsVerifier = new DefaultJWTClaimsVerifier<SecurityContext>(
                 new JWTClaimsSet.Builder().issuer(issuer).build(), Set.of("sub", "exp"));
-        claimsVerifier.setMaxClockSkew(0);
+        claimsVerifier.setMaxClockSkew(60);
         jwt.setJWTClaimsSetVerifier(claimsVerifier);
     }
 

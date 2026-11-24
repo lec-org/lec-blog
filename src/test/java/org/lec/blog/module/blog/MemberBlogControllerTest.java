@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -66,6 +67,8 @@ class MemberBlogControllerTest {
         mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "notes").param("tag", "java"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].hasRecentPost").value(false));
+        mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "ming"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
         mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("tag", "jav"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
         mvc.perform(put(ME).header("X-Dev-User-Id", "crud-member").contentType(MediaType.APPLICATION_JSON)
@@ -104,8 +107,16 @@ class MemberBlogControllerTest {
                 .andExpect(status().isOk());
         mvc.perform(get(ME).header("X-Dev-User-Id", "hidden-owner")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("HIDDEN"));
+        mvc.perform(delete(ME).header("X-Dev-User-Id", "hidden-owner")).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "Hidden blog"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
+        mvc.perform(post(admin + "/restore").header("X-Dev-User-Id", "regular")).andExpect(status().isForbidden());
+        mvc.perform(post(admin + "/restore").header("X-Dev-User-Id", "chief").header("X-Dev-Captain", "true"))
+                .andExpect(status().isOk());
+        mvc.perform(get(ME).header("X-Dev-User-Id", "hidden-owner")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+        mvc.perform(get("/api/v1/blogs").header("X-Dev-User-Id", "reader").param("q", "Hidden blog"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
         mvc.perform(get("/api/v1/posts/recent").header("X-Dev-User-Id", "reader").param("size", "51"))
                 .andExpect(status().isBadRequest());
         mvc.perform(put(ME).header("X-Dev-User-Id", "hidden-owner").contentType(MediaType.APPLICATION_JSON)

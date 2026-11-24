@@ -48,8 +48,13 @@ class LecSsoTokenVerifierTest {
             ecJwt.sign(new ECDSASigner(ec));
             assertThat(verifier.verify(ecJwt.serialize()).isCaptain()).isTrue();
 
+            var slightlyExpired = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("rsa").build(),
+                    claims(issuer, -15).build());
+            slightlyExpired.sign(new RSASSASigner(rsa));
+            assertThat(verifier.verify(slightlyExpired.serialize()).userId()).isEqualTo("member");
+
             var expired = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("rsa").build(),
-                    claims(issuer, -10).build());
+                    claims(issuer, -120).build());
             expired.sign(new RSASSASigner(rsa));
             assertThatThrownBy(() -> verifier.verify(expired.serialize())).isInstanceOf(BizException.class);
 

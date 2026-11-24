@@ -117,6 +117,8 @@ class BlogSyncServiceTest {
         members.hide("feed-author");
         mvc.perform(get("/api/v1/posts/recent").header("X-Dev-User-Id", "reader"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(0));
+        assertThatThrownBy(() -> members.delete("feed-author")).isInstanceOf(BizException.class);
+        members.restore("feed-author");
         members.delete("feed-author");
         assertThat(postCount("feed-author")).isZero();
     }

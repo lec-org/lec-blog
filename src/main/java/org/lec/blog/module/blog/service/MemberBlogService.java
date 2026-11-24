@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -28,6 +31,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class MemberBlogService {
     private static final TypeReference<List<String>> TAGS = new TypeReference<>() {};
+    private final Cache<String, IdentitySnapshot> identityCache = Caffeine.newBuilder()
+            .maximumSize(2000).expireAfterWrite(Duration.ofMinutes(5)).build();
     private final MemberBlogMapper blogs;
     private final BlogPostMapper posts;
     private final ObjectMapper json;
@@ -49,6 +54,7 @@ public class MemberBlogService {
         var query = Wrappers.<MemberBlogEntity>lambdaQuery().eq(MemberBlogEntity::getStatus, "ACTIVE");
         if (q != null && !q.isBlank()) {
             query.apply("(LOCATE(LOWER({0}), LOWER(display_name)) > 0 OR "
+                    + "LOCATE(LOWER({0}), LOWER(username)) > 0 OR "
                     + "LOCATE(LOWER({0}), LOWER(blog_title)) > 0 OR LOCATE(LOWER({0}), LOWER(bio)) > 0)", q.strip());
         }
         if (sort.equals("recent")) {
@@ -108,6 +114,7 @@ public class MemberBlogService {
             blog.setCreatedAt(now);
             blog.setUpdatedAt(now);
             blogs.insert(blog);
+            identityCache.put(user.userId(), IdentitySnapshot.from(user));
             return toOwn(blog);
         }
 
@@ -135,15 +142,22 @@ public class MemberBlogService {
                     .set(MemberBlogEntity::getSyncError, null);
         }
         blogs.update(update);
+        identityCache.put(user.userId(), IdentitySnapshot.from(user));
         return toOwn(blogs.selectById(user.userId()));
     }
 
     public void delete(String userId) {
         transaction.executeWithoutResult(status -> {
-            if (blogs.lock(userId) != null) {
-                posts.delete(Wrappers.<BlogPostEntity>lambdaQuery().eq(BlogPostEntity::getUserId, userId));
-                blogs.deleteById(userId);
+            var existing = blogs.lock(userId);
+            if (existing == null) {
+                return;
             }
+            if ("HIDDEN".equals(existing.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "博客已被队长下架，请联系队长处理");
+            }
+            posts.delete(Wrappers.<BlogPostEntity>lambdaQuery().eq(BlogPostEntity::getUserId, userId));
+            blogs.deleteById(userId);
+            identityCache.invalidate(userId);
         });
     }
 
@@ -155,9 +169,21 @@ public class MemberBlogService {
         }
     }
 
+    public void restore(String userId) {
+        int changed = blogs.update(Wrappers.<MemberBlogEntity>lambdaUpdate().eq(MemberBlogEntity::getUserId, userId)
+                .set(MemberBlogEntity::getStatus, "ACTIVE").set(MemberBlogEntity::getUpdatedAt, Utc.now()));
+        if (changed == 0 && blogs.selectById(userId) == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+    }
+
     @Async
     @EventListener
     public void refreshIdentity(AuthUser user) {
+        var snapshot = IdentitySnapshot.from(user);
+        if (snapshot.equals(identityCache.getIfPresent(user.userId()))) {
+            return;
+        }
         var update = Wrappers.<MemberBlogEntity>lambdaUpdate().eq(MemberBlogEntity::getUserId, user.userId())
                 .and(diff -> diff.ne(MemberBlogEntity::isCaptain, user.isCaptain())
                         .or(!user.username().isEmpty(), username -> username.ne(MemberBlogEntity::getUsername, user.username()))
@@ -169,6 +195,7 @@ public class MemberBlogService {
                 .set(!user.avatar().isEmpty(), MemberBlogEntity::getAvatarUrl, user.avatar())
                 .set(MemberBlogEntity::getUpdatedAt, Utc.now());
         blogs.update(update);
+        identityCache.put(user.userId(), snapshot);
     }
 
     private MyBlogResponse toOwn(MemberBlogEntity blog) {
@@ -178,7 +205,7 @@ public class MemberBlogService {
 
     private MemberBlogItemResponse item(MemberBlogEntity blog, LocalDateTime now) {
         var latest = blog.getLastPostAt();
-        boolean recent = latest != null && !latest.isBefore(now.minusDays(7)) && !latest.isAfter(now);
+        boolean recent = latest != null && !latest.isBefore(now.minusDays(7)) && !latest.isAfter(now.plusHours(12));
         try {
             return new MemberBlogItemResponse(blog.getUserId(), blog.getUsername(), blog.getDisplayName(),
                     blog.getAvatarUrl(), blog.isCaptain(), blog.getBlogUrl(), blog.getBlogTitle(), blog.getBio(),
@@ -191,5 +218,11 @@ public class MemberBlogService {
 
     private static String clean(String value) {
         return value == null ? "" : value.strip();
+    }
+
+    private record IdentitySnapshot(String username, String displayName, String avatarUrl, boolean captain) {
+        private static IdentitySnapshot from(AuthUser user) {
+            return new IdentitySnapshot(user.username(), user.displayName(), user.avatar(), user.isCaptain());
+        }
     }
 }

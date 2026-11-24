@@ -54,6 +54,7 @@ java -jar target/lec-blog.jar
 | `RSS_SYNC_ENABLED` | `true` | 启用定时同步 |
 | `RSS_SYNC_INTERVAL_MS` | `1800000` | 定时同步间隔，单位毫秒 |
 | `CORS_ALLOWED_ORIGINS` | `*` | 逗号分隔的来源列表，例如 `https://orbit.lecspace.top,*.lecspace.top` |
+| `SWAGGER_ENABLED` | `prod` 默认 `false` | 是否在生产环境暴露 `/swagger-ui.html` 与 `/v3/api-docs` |
 
 部署镜像可用 `docker build -t lec-blog .` 构建。Devtron/Kubernetes 探针可指向 `GET /healthz`，端口与 `PORT` 一致。Flyway 在启动时迁移数据库。生产环境的数据库和 Orbit 令牌通过部署环境的 Secret 注入。
 
@@ -72,6 +73,7 @@ java -jar target/lec-blog.jar
 | `GET /api/v1/blogs/{userId}/posts` | 成员文章分页 |
 | `GET /api/v1/posts/recent` | 全工作室文章分页，附作者昵称、头像和博客名 |
 | `DELETE /api/v1/admin/blogs/{userId}` | 队长下架指定成员的博客和文章 |
+| `POST /api/v1/admin/blogs/{userId}/restore` | 队长恢复已下架的成员博客 |
 
 文章分页参数为 `page` 和 `size`，默认 1 和 10，`size` 上限为 50，返回 `page`、`size`、`total` 和 `items`。RSS 条目的时间优先使用发布时间，其次使用条目更新时间，两者都缺失时使用首次抓取时间。订阅地址变更后，服务会清理该成员的旧文章缓存，并以新订阅源重新建立基线。
 

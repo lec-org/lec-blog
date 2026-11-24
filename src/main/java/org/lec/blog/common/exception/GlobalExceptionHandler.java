@@ -44,4 +44,10 @@ public class GlobalExceptionHandler {
         LOG.error("数据库操作失败", exception);
         return business(new BizException(ErrorCode.INTERNAL_ERROR));
     }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ApiResponse<Void>> unexpected(Exception exception) {
+        LOG.error("未预期服务异常", exception);
+        return business(new BizException(ErrorCode.INTERNAL_ERROR));
+    }
 }

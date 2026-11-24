@@ -145,7 +145,7 @@ public class BlogSyncService {
         for (var post : items) {
             if (known.add(post.getGuidHash())) {
                 posts.insert(post);
-                if (!post.getPublishedAt().isBefore(now.minusDays(7)) && !post.getPublishedAt().isAfter(now)
+                if (!post.getPublishedAt().isBefore(now.minusDays(7)) && !post.getPublishedAt().isAfter(now.plusHours(12))
                         && (newestNewPost == null || post.getPublishedAt().isAfter(newestNewPost.getPublishedAt()))) {
                     newestNewPost = post;
                 }
