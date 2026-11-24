@@ -268,7 +268,7 @@ p { line-height: 1.65; }
   display: grid; justify-content: stretch; justify-items: start; gap: 0.3rem; height: auto;
   padding: 0.58rem 0.65rem; border-radius: 0.65rem;
 }
-.library .library-item[aria-pressed] { background: var(--tint); }
+.library .library-item[aria-pressed="true"] { background: var(--tint); }
 .library-title { word-break: break-word; text-align: start; }
 .library-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; color: var(--subtle); font-size: 0.82rem; }
 .library-trigger { display: none; }

@@ -4,10 +4,13 @@ ARG NPM_REGISTRY=https://registry.npmmirror.com
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN --mount=type=cache,id=lec-blog-pnpm,target=/pnpm/store \
-    if [ -n "$NPM_REGISTRY" ]; then pnpm config set registry "$NPM_REGISTRY"; fi \
-    && pnpm install --frozen-lockfile --store-dir=/pnpm/store
+    sh -ceu 'if [ -n "$NPM_REGISTRY" ]; then \
+      export COREPACK_NPM_REGISTRY="$NPM_REGISTRY"; \
+      pnpm config set registry "$NPM_REGISTRY"; \
+    fi; \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store'
 COPY web/ .
-RUN pnpm build
+RUN sh -ceu 'if [ -n "$NPM_REGISTRY" ]; then export COREPACK_NPM_REGISTRY="$NPM_REGISTRY"; fi; pnpm build'
 
 FROM maven:3.9-eclipse-temurin-17-alpine AS java-build
 WORKDIR /build
